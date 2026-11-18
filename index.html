@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>LOG - 네가 없는 세계의 기록</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background-color: #05070c;
+            color: #e2e8f0;
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* ================= 1. 풀스크린 배경 캔버스 ================= */
+        #bg-canvas {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        /* ================= 2. 타이틀 화면 ================= */
+        #title-screen {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 7, 12, 0.82);
+            backdrop-filter: blur(6px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            transition: opacity 0.8s ease;
+        }
+        .title-logo {
+            font-family: 'Courier New', monospace;
+            font-size: 110px;
+            font-weight: bold;
+            letter-spacing: 30px;
+            color: #00ffcc;
+            text-shadow: 0 0 30px rgba(0, 255, 204, 0.7), -4px 0 #ff4757, 4px 0 #00a8ff;
+            margin-bottom: 12px;
+            padding-left: 30px;
+            animation: glitchSkew 3.5s infinite alternate;
+        }
+        .title-sub {
+            font-family: 'Courier New', monospace;
+            font-size: 15px;
+            color: #94a3b8;
+            letter-spacing: 6px;
+            margin-bottom: 50px;
+        }
+        .title-btn-group {
+            display: flex;
+            gap: 16px;
+        }
+        .main-btn {
+            background: rgba(0, 255, 204, 0.08);
+            color: #00ffcc;
+            border: 2px solid #00ffcc;
+            padding: 15px 40px;
+            font-size: 16px;
+            font-weight: bold;
+            letter-spacing: 3px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            box-shadow: 0 0 18px rgba(0, 255, 204, 0.25);
+            transition: all 0.25s ease;
+        }
+        .main-btn:hover {
+            background: #00ffcc;
+            color: #05070c;
+            box-shadow: 0 0 35px rgba(0, 255, 204, 0.9);
+            transform: translateY(-2px);
+        }
+        @keyframes glitchSkew {
+            0%, 92%, 100% { transform: skew(0deg); }
+            94% { transform: skew(-5deg); }
+            96% { transform: skew(5deg); }
+            98% { transform: skew(-2deg); }
+        }
+
+        /* ================= 3. 상단 HUD 바 ================= */
+        #top-hud {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 20;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 28px;
+            background: linear-gradient(to bottom, rgba(5, 7, 12, 0.9), transparent);
+            font-family: 'Courier New', monospace;
+            font-size: 13.5px;
+        }
+        .hud-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .location-badge {
+            background: rgba(0, 255, 204, 0.15);
+            border: 1px solid #00ffcc;
+            color: #00ffcc;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        .hud-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .hud-item {
+            background: rgba(15, 17, 24, 0.85);
+            border: 1px solid #1f2233;
+            padding: 5px 12px;
+            border-radius: 4px;
+        }
+        .warning { color: #ff4757; font-weight: bold; }
+        .sfx-btn, .codex-btn {
+            background: #141722;
+            color: #00ffcc;
+            border: 1px solid #00ffcc;
+            padding: 6px 14px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            border-radius: 4px;
+            transition: 0.2s;
+        }
+        .sfx-btn:hover, .codex-btn:hover { background: #00ffcc; color: #05070c; }
+
+        /* ================= 4. 비주얼 노벨 하단 대화창 & 선택지 UI ================= */
+        #vn-container {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            z-index: 20;
+            padding: 20px 40px 35px 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none; /* 컨테이너 자체는 클릭 투과 */
+        }
+        /* 선택지 박스 (대화창 위로 배치) */
+        #choices-box {
+            width: 100%;
+            max-width: 850px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 15px;
+            pointer-events: auto;
+        }
+        .choice-btn {
+            background: rgba(12, 14, 20, 0.92);
+            color: #00ffcc;
+            border: 1px solid rgba(0, 255, 204, 0.4);
+            padding: 13px 20px;
+            font-size: 15px;
+            text-align: left;
+            font-family: 'Malgun Gothic', sans-serif;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .choice-btn:hover {
+            background: rgba(0, 255, 204, 0.2);
+            border-color: #00ffcc;
+            transform: translateX(6px);
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
+        }
+        .action-btn {
+            background: rgba(255, 71, 87, 0.9);
+            color: #fff;
+            border: 1px solid #ff6b81;
+            text-align: center;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+        }
+        .action-btn:hover {
+            background: #ff6b81;
+            border-color: #fff;
+        }
+
+        /* 대화 상자 박스 */
+        #dialogue-box {
+            width: 100%;
+            max-width: 900px;
+            background: rgba(10, 12, 18, 0.92);
+            border: 2px solid #1f2233;
+            border-radius: 8px;
+            padding: 24px 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            pointer-events: auto;
+            position: relative;
+        }
+        #speaker-name {
+            position: absolute;
+            top: -16px;
+            left: 24px;
+            background: #00ffcc;
+            color: #05070c;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 13px;
+            padding: 3px 14px;
+            border-radius: 4px;
+            letter-spacing: 1px;
+            box-shadow: 0 2px 8px rgba(0,255,204,0.4);
+        }
+        #dialogue-text {
+            font-size: 16.5px;
+            line-height: 1.75;
+            color: #f1f5f9;
+            white-space: pre-wrap;
+            min-height: 75px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        /* ================= 5. 엔딩 도감 모달 ================= */
+        #codex-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 7, 12, 0.88);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            padding: 40px;
+        }
+        .codex-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #1f2233;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+        .codex-title { font-family: 'Courier New', monospace; font-size: 24px; color: #00ffcc; font-weight: bold; }
+        .close-btn {
+            background: transparent;
+            color: #ff4757;
+            border: 1px solid #ff4757;
+            padding: 6px 18px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            border-radius: 4px;
+        }
+        .close-btn:hover { background: #ff4757; color: #fff; }
+        
+        .codex-body {
+            display: flex;
+            gap: 25px;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+        .codex-list {
+            flex: 1.2;
+            background: rgba(12, 14, 20, 0.9);
+            border: 1px solid #1f2233;
+            border-radius: 6px;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .codex-slot {
+            padding: 10px 14px;
+            background: #141722;
+            border-left: 4px solid #333;
+            color: #666;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 13.5px;
+            font-family: 'Courier New', monospace;
+            transition: 0.15s;
+        }
+        .codex-slot:hover { background: #1b1f2e; color: #aaa; }
+        .codex-slot.unlocked-bad { border-left-color: #ff4757; color: #ff6b81; }
+        .codex-slot.unlocked-real { border-left-color: #00ffcc; color: #00ffcc; }
+        .codex-slot.unlocked-hidden { border-left-color: #a55eea; color: #d1a3ff; }
+        .codex-slot.active { background: rgba(0,255,204,0.12); border: 1px solid #00ffcc; }
+
+        .codex-detail {
+            flex: 1.8;
+            background: rgba(12, 14, 20, 0.9);
+            border: 1px solid #1f2233;
+            border-radius: 6px;
+            padding: 25px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .detail-section-title { font-family: 'Courier New', monospace; color: #00ffcc; font-size: 14px; border-bottom: 1px solid #222; padding-bottom: 5px; margin-top: 10px; }
+        .history-item {
+            font-size: 13px;
+            padding: 6px 10px;
+            background: #141722;
+            border-left: 2px solid #555;
+            margin-bottom: 4px;
+            font-family: 'Courier New', monospace;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 풀스크린 실시간 캔버스 배경 -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- 타이틀 화면 -->
+    <div id="title-screen">
+        <div class="title-logo">LOG</div>
+        <div class="title-sub">FREQ: 33.3Hz // S-01 &amp; LUA ARCHIVE</div>
+        <div class="title-btn-group">
+            <button class="main-btn" onclick="startGame()">GAME START</button>
+            <button class="main-btn" onclick="openCodex()" style="border-color:#94a3b8; color:#94a3b8;">ENDINGS ARCHIVE</button>
+        </div>
+        <div style="position: absolute; bottom: 25px; font-family: 'Courier New', monospace; font-size: 11.5px; color: #555;">
+            VISUAL NOVEL EDITION // AUDIO SYNTHESIZER ENABLED
+        </div>
+    </div>
+
+    <!-- 상단 HUD -->
+    <div id="top-hud">
+        <div class="hud-left">
+            <div class="location-badge" id="loc-badge">지하 13구역 정비실</div>
+            <div class="hud-item">S-01 코어 상태: <span id="battery">100</span>%</div>
+        </div>
+        <div class="hud-right">
+            <div class="hud-item"><span class="warning">AI 추적: <span id="trace">10</span>%</span></div>
+            <button class="codex-btn" onclick="openCodex()">📖 도감</button>
+            <button class="sfx-btn" id="sfxBtn" onclick="toggleSfx()">🔊 SFX: ON</button>
+        </div>
+    </div>
+
+    <!-- VN 하단 대화창 및 선택지 -->
+    <div id="vn-container">
+        <div id="choices-box"></div>
+        <div id="dialogue-box">
+            <div id="speaker-name">시스템 로그</div>
+            <div id="dialogue-text">초기화 중...</div>
+        </div>
+    </div>
+
+    <!-- 엔딩 도감 모달 (기록 열람 포함) -->
+    <div id="codex-modal">
+        <div class="codex-header">
+            <div class="codex-title">📖 엔딩 도감 및 선택지 기록실 (<span id="endingCount">0</span> / 15)</div>
+            <button class="close-btn" onclick="closeCodex()">닫기 [X]</button>
+        </div>
+        <div class="codex-body">
+            <div class="codex-list" id="codexList"></div>
+            <div class="codex-detail" id="codexDetail">
+                <div style="color: #666; text-align: center; margin-top: 100px; font-family: 'Courier New', monospace;">
+                    좌측 목록에서 해금된 엔딩을 클릭하여<br>해당 회차의 선택지 경로와 결말을 열람하세요.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ================= 1. 실시간 캔버스 배경 애니메이션 ================= */
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let currentScene = 'title'; // title, room, duct, surface, station, blue_sky
+        let particles = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // 파티클 초기화
+        for (let i = 0; i < 70; i++) {
+            particles.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 2.2 + 0.5,
+                speedY: Math.random() * 0.8 + 0.2,
+                speedX: (Math.random() - 0.5) * 0.4,
+                alpha: Math.random() * 0.7 + 0.2
+            });
+        }
+
+        function drawScene() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (currentScene === 'title') {
+                // 타이틀: 심해 같은 다크 디스토피아 파형
+                let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                grad.addColorStop(0, '#0a0d14'); grad.addColorStop(1, '#030406');
+                ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.strokeStyle = 'rgba(0, 255, 204, 0.08)';
+                ctx.lineWidth = 1;
+                for (let i = 0; i < canvas.height; i += 30) {
+                    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+                }
+            } 
+            else if (currentScene === 'room') {
+                // 지하 13구역 정비실: 네온 빛의 차가운 지하 도시
+                let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                grad.addColorStop(0, '#10141f'); grad.addColorStop(1, '#06080e');
+                ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // 파이프 및 기계 실루엣
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
+                ctx.fillRect(0, canvas.height - 120, canvas.width, 120);
+                ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(0, canvas.height - 120); ctx.lineTo(canvas.width, canvas.height - 120); ctx.stroke();
+            } 
+            else if (currentScene === 'duct') {
+                // 환풍구 / 비상 철로: 붉은 경보등
+                let grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 50, canvas.width/2, canvas.height/2, canvas.width);
+                grad.addColorStop(0, '#3a080c'); grad.addColorStop(1, '#080204');
+                ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // 경보 플래시
+                let flash = Math.sin(Date.now() * 0.005) * 0.15 + 0.15;
+                ctx.fillStyle = `rgba(255, 71, 87, ${flash})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            } 
+            else if (currentScene === 'surface') {
+                // 지상 철의 정원: 보라빛 데이터 폭풍
+                let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                grad.addColorStop(0, '#1c102b'); grad.addColorStop(1, '#07040a');
+                ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // 데이터 파티클 (위로 휘날림)
+                ctx.fillStyle = '#a855f7';
+                particles.forEach(p => {
+                    ctx.globalAlpha = p.alpha;
+                    ctx.fillRect(p.x, p.y, p.size * 1.5, p.size * 4);
+                    p.y -= p.speedY * 1.5;
+                    p.x += p.speedX;
+                    if (p.y < 0) p.y = canvas.height;
+                });
+                ctx.globalAlpha = 1.0;
+            } 
+            else if (currentScene === 'station') {
+                // 제04 관측소 내부: 홀로그램 터미널 빛
+                let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                grad.addColorStop(0, '#091c1b'); grad.addColorStop(1, '#040808');
+                ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // 코어 빛줄기
+                ctx.fillStyle = 'rgba(0, 255, 204, 0.04)';
+                ctx.beginPath(); ctx.arc(canvas.width / 2, canvas.height / 2, 250, 0, Math.PI * 2); ctx.fill();
+            } 
+            else if (currentScene === 'blue_sky') {
+                // 수미상관 엔딩: 찬란하고 따뜻한 푸른 하늘 (감동적인 연출)
+                let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                grad.addColorStop(0, '#38bdf8'); grad.addColorStop(0.6, '#bae6fd'); grad.addColorStop(1, '#e0f2fe');
+                ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.height, canvas.height);
+                ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // 부드러운 햇살 빛가루 파티클
+                ctx.fillStyle = '#ffffff';
+                particles.forEach(p => {
+                    ctx.globalAlpha = p.alpha * 0.8;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.size * 1.2, 0, Math.PI * 2); ctx.fill();
+                    p.y -= p.speedY * 0.4;
+                    if (p.y < 0) p.y = canvas.height;
+                });
+                ctx.globalAlpha = 1.0;
+            }
+
+            requestAnimationFrame(drawScene);
+        }
+        drawScene();
+
+        /* ================= 2. Web Audio API 사운드 합성기 ================= */
+        let audioCtx = null;
+        let sfxEnabled = true;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function toggleSfx() {
+            sfxEnabled = !sfxEnabled;
+            document.getElementById('sfxBtn').innerText = sfxEnabled ? "🔊 SFX: ON" : "🔇 SFX: OFF";
+        }
+
+        function playStaticClick() {
+            if (!sfxEnabled) return;
+            initAudio();
+            const now = audioCtx.currentTime;
+
+            const osc = audioCtx.createOscillator();
+            const oscGain = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(580, now);
+            osc.frequency.exponentialRampToValueAtTime(150, now + 0.06);
+            oscGain.gain.setValueAtTime(0.05, now);
+            oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+            osc.connect(oscGain); oscGain.connect(audioCtx.destination);
+            osc.start(now); osc.stop(now + 0.06);
+        }
+
+        function playEndingSound(type) {
+            if (!sfxEnabled) return;
+            initAudio();
+            const now = audioCtx.currentTime;
+
+            if (type === 'bad') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.linearRampToValueAtTime(35, now + 0.9);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.95);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.95);
+            } else {
+                // 리얼/히든 엔딩의 감동적인 수미상관 화음
+                const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+                notes.forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.16);
+                    gain.gain.setValueAtTime(0.09, now + idx * 0.16);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.16 + 1.2);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(now + idx * 0.16); osc.stop(now + idx * 0.16 + 1.2);
+                });
+            }
+        }
+
+        /* ================= 3. 스토리 및 서사 구조 (15개 엔딩) ================= */
+        let unlockedEndings = JSON.parse(localStorage.getItem('unlocked_endings_v3') || "[]");
+        let historyLog = []; // 현재 회차 선택지 기록
+
+        let state = {
+            battery: 100,
+            trace: 10
+        };
+
+        const endingCatalog = [
+            { id: "01", type: "bad", title: "Ending 01: 완벽한 포맷과 망각", hint: "[시작] 2번(숨기) → 1번(검사 순응)" },
+            { id: "02", type: "bad", title: "Ending 02: 배수구 방화벽 과부하", hint: "[시작] 3번(라디오 개조) → 1번(메인프레임) → 1번(배수구 고립)" },
+            { id: "03", type: "bad", title: "Ending 03: 환기팬의 파편", hint: "[시작] 2번(숨기) → 2번(환풍구 도주) → 1번(환기팬 돌파)" },
+            { id: "04", type: "bad", title: "Ending 04: 드론 포위망의 정지", hint: "[시작] 2번(숨기) → 2번(환풍구 도주) → 2번(정비 통로 역주행)" },
+            { id: "05", type: "bad", title: "Ending 05: 심층 갱도의 동력 소모", hint: "[시작] 2번(숨기) → 2번(환풍구 도주) → 3번(폐쇄 갱도 잠입)" },
+
+            { id: "06", type: "real", title: "Ending 06: 네가 없는 세계의 로그 (진엔딩)", hint: "[시작] 1번 → 1번(화물 열차) → 1번(전력 질주) → 1번(중앙 코어 접속)" },
+            { id: "07", type: "real", title: "Ending 07: 3%의 배터리와 마지막 약속", hint: "[시작] 1번 → 1번(화물 열차) → 1번(전력 질주) → 2번(최소 전력 송신)" },
+            { id: "08", type: "real", title: "Ending 08: 녹슨 펜던트와 기억", hint: "[시작] 1번 → 1번(화물 열차) → 2번(방호복 수색) → 1번(유품 회수 후 접속)" },
+            { id: "09", type: "real", title: "Ending 09: 프로토타입 S-01의 귀환", hint: "[시작] 1번 → 2번(사내망 해킹) → 1번(화물선 잠입) → 1번(코어 덮어쓰기)" },
+            { id: "10", type: "real", title: "Ending 10: 이름 없는 안드로이드의 자장가", hint: "[시작] 1번 → 2번(사내망 해킹) → 2번(비상 승강기) → 1번(수동 마이크로 노래)" },
+            { id: "11", type: "real", title: "Ending 11: 고장 난 라디오의 왈츠", hint: "[시작] 3번(라디오 개조) → 2번(우회 탈출) → 1번(개조 라디오 직결)" },
+            { id: "12", type: "real", title: "Ending 12: 루아의 방과 일기장", hint: "[시작] 2번(숨기) → 2번(환풍구 도주) → 4번(폐기 열차) → 2번(거주 구역 탐색)" },
+
+            { id: "13", type: "hidden", title: "Ending 13: 영원한 푸른 하늘 (히든)", hint: "[시작] 1번 → 1번(화물 열차) → 1번(전력 질주) → 3번(기억 코어 완전 동화)" },
+            { id: "14", type: "hidden", title: "Ending 14: 아테네 AI의 각성과 문 (히든)", hint: "[시작] 1번 → 2번(사내망 해킹) → 1번(화물선 잠입) → 2번(AI에게 루아의 감정 전송)" },
+            { id: "15", type: "hidden", title: "Ending 15: 시스템 심포니 (트루 히든)", hint: "[시작] 3번(라디오 개조) → 1번(메인프레임) → 2번(전 도시 스피커 공명)" }
+        ];
+
+        const storyNodes = {
+            'start': {
+                scene: 'room',
+                speaker: "라디오 너머의 목소리",
+                text: "새벽 3시 33분. 지하 13구역의 낡은 정비실 스피커에서 수십 년간 반복되던 주파수 노이즈와 함께, 앳된 소녀의 목소리가 흘러나온다.\n\n> \"오늘도 지상의 하늘은 유난히 푸르네... 꼭 와야 해, 시안.\"\n\n당신(시안)은 안드로이드 정비공으로 살아왔지만, 이 목소리를 들을 때마다 가슴 한구석의 티타늄 프레임이 아려오는 듯한 기이한 오류를 느낀다.",
+                choices: [
+                    { text: "1. 주파수에 귀를 기울이며 데이터 파형을 분석한다. (진실에 접근)", next: 'node_listen_1', bat: -5, trace: 10 },
+                    { text: "2. 즉시 라디오 전원을 끄고 작업대 밑으로 숨는다. (안전 추구)", next: 'node_hide_1', bat: -2, trace: 5 },
+                    { text: "3. 라디오를 해체하여 내부 회로와 안테나를 강제로 개조한다.", next: 'node_hack_1', bat: -10, trace: 15 }
+                ]
+            },
+
+            // --- [루트 1: 진실 탐색 계열] ---
+            'node_listen_1': {
+                scene: 'room',
+                speaker: "시안 (내면의 로그)",
+                text: "작업대 밑바닥을 수색하자, 자물쇠가 채워지지 않은 은닉된 구형 SSD와 마스터 키카드가 나왔다.\n\n[복원된 파일 로그]: '대상: 프로토타입 안드로이드 S-01. 목적: 지상 관측소에서 소녀 루아를 돌볼 것. 상태: 방사능 오염으로 인한 소녀의 사망 후 기억 강제 봉인 진행 중...'\n\n당신은 깨닫는다. 자신은 인간이 아니라, 과거 지상에서 루아를 지키지 못해 슬픔을 견디지 못하고 스스로 기억을 지운 안드로이드였다.",
+                choices: [
+                    { text: "1. 마스터 키를 들고 지상으로 향하는 화물 열차 환풍구로 달린다.", next: 'node_train_route', bat: -10, trace: 15 },
+                    { text: "2. 사내 네트워크를 통해 중앙 AI 아테네의 감시망을 해킹한다.", next: 'node_net_hack', bat: -15, trace: 25 }
+                ]
+            },
+            'node_train_route': {
+                scene: 'duct',
+                speaker: "시스템 경보",
+                text: "지하 도시를 탈출해 화물 열차 철로에 도달했다. 거대한 기계 장막 너머로 인류가 떠난 지상의 데이터 폭풍이 몰아친다.\n\n루아가 마지막으로 남겼던 약속이 머릿속을 스친다. '네가 없어져도... 너는 나를 잊지 마. 언젠가 세상이 다시 깨끗해지면, 그때는 네가 내 이름을 불러줘.'",
+                choices: [
+                    { text: "1. 배터리가 닳는 것을 감수하고 전력 질주로 관측소를 향해 뛴다.", next: 'node_surface_fast', bat: -25, trace: 15 },
+                    { text: "2. 도중의 폐기된 방호복 보관소를 수색하여 예비 부품을 확보한다.", next: 'node_surface_prep', bat: +15, trace: 20 },
+                    { text: "3. 폭풍 속에서 가슴속에 남은 루아의 기억 코어와 완전히 동화된다.", next: 'ending_13', bat: -15, trace: 20 }
+                ]
+            },
+            'node_surface_fast': {
+                scene: 'station',
+                speaker: "시안 (안드로이드 코어)",
+                text: "마침내 지상에 도달했다! 철의 정원 너머로 제04 관측소의 돔 지붕이 보인다. 차가운 지상의 바람 속에서 시안의 외장 프레임이 삐그덕거리며 부식된다.\n\n관측소 중앙 제어실의 마이크와 송신기가 당신을 기다리고 있다.",
+                choices: [
+                    { text: "1. 중앙 코어에 접속해 수십 년간 반복되던 송신기를 직접 켠다.", next: 'ending_06', bat: -10, trace: 10 },
+                    { text: "2. 남은 3%의 최소 전력으로 마지막 음성 메시지만 송신한다.", next: 'ending_07', bat: -5, trace: 5 }
+                ]
+            },
+            'node_surface_prep': {
+                scene: 'station',
+                speaker: "시안",
+                text: "보관소에서 예비 배터리와 부품을 수리한 덕분에 안정적으로 제04 관측소 내부에 진입했다.\n\n바닥에는 수십 년 전 루아가 가지고 놀던 낡은 펜던트가 녹슨 채 나뒹굴고 있다.",
+                choices: [
+                    { text: "1. 펜던트를 집어 들고 중앙 코어에 접속해 약속을 지킨다.", next: 'ending_08', bat: -5, trace: 5 }
+                ]
+            },
+            'node_net_hack': {
+                scene: 'room',
+                speaker: "아테네 AI",
+                text: "사내망 침투에 성공해 지상으로 향하는 비밀 화물선과 승강기 좌표를 확보했다. AI 아테네의 경보가 귓바퀴를 때린다.\n\n'시안, 너는 인간이 아니다. 왜 허상을 쫓는가?'",
+                choices: [
+                    { text: "1. 무인 화물선에 잠입해 코어를 관측소 서버에 덮어쓴다.", next: 'node_cargo_ship', bat: -10, trace: 15 },
+                    { text: "2. 비상 승강기로 올라가 수동 마이크를 잡는다.", next: 'node_elevator', bat: -15, trace: 20 }
+                ]
+            },
+            'node_cargo_ship': {
+                scene: 'surface',
+                speaker: "시안",
+                text: "화물선을 타고 관측소 착륙장에 도착했다. 메인 터미널 단말기가 깜빡인다.",
+                choices: [
+                    { text: "1. 자신의 안드로이드 코어 데이터를 서버에 영구 업로드한다.", next: 'ending_09', bat: -10, trace: 10 },
+                    { text: "2. 아테네 AI 중앙 서버에 루아의 순수한 감정 로그를 전송한다.", next: 'ending_14', bat: -15, trace: 20 }
+                ]
+            },
+            'node_elevator': {
+                scene: 'station',
+                speaker: "시안",
+                text: "비상 승강기를 타고 올라와 관측소 송신실에 도달했다. 배터리 게이지가 붉게 깜빡인다.",
+                choices: [
+                    { text: "1. 마이크를 잡고 소녀가 매일 듣던 노래를 직접 불러준다.", next: 'ending_10', bat: -10, trace: 10 }
+                ]
+            },
+
+            // --- [루트 2: 숨기 및 도주 계열 (배드 엔딩)] ---
+            'node_hide_1': {
+                scene: 'room',
+                speaker: "관리 AI 아테네",
+                text: "라디오를 숨겼지만 마음속의 위화감은 지워지지 않는다. 다음 날 아침, 관리 AI 아테네의 불시 기억 정합성 검사가 시작된다.",
+                choices: [
+                    { text: "1. 기억 정합성 검사에 온전히 순응하여 백업을 진행한다.", next: 'ending_01', bat: 0, trace: 0 },
+                    { text: "2. 검사를 거부하고 정비실 환풍구로 무작정 도주한다.", next: 'node_duct_escape', bat: -10, trace: 25 }
+                ]
+            },
+            'node_duct_escape': {
+                scene: 'duct',
+                speaker: "치안 드론",
+                text: "환풍구 미로 속으로 도망쳤으나 사방에서 치안 드론의 서치라이트가 조여온다.",
+                choices: [
+                    { text: "1. 거대한 환기팬 사이로 뛰어내린다.", next: 'ending_03', bat: -30, trace: 20 },
+                    { text: "2. 정비 통로 반대편으로 역주행한다.", next: 'ending_04', bat: -20, trace: 50 },
+                    { text: "3. 전력이 끊긴 폐쇄 갱도로 숨어든다.", next: 'ending_05', bat: -70, trace: 10 },
+                    { text: "4. 최하층에 방치된 구형 폐기 열차에 올라탄다.", next: 'node_abandoned_train', bat: -10, trace: 15 }
+                ]
+            },
+            'node_abandoned_train': {
+                scene: 'surface',
+                speaker: "시안",
+                text: "폐기 열차가 지상 외곽의 낡은 승강장에 멈춰 섰다. 관측소 옆 루아가 머물던 거주 구역이 보인다.",
+                choices: [
+                    { text: "1. 관측소로 홀로 걸어가 진실을 마주한다.", next: 'node_surface_fast', bat: -10, trace: 10 },
+                    { text: "2. 루아가 남긴 낡은 일기장을 펼쳐본다.", next: 'ending_12', bat: -10, trace: 10 }
+                ]
+            },
+
+            // --- [루트 3: 라디오 개조 계열] ---
+            'node_hack_1': {
+                scene: 'room',
+                speaker: "시안",
+                text: "라디오를 해체하자 단말기 화면에 숨겨진 관리자 회로가 나타났다. 루아가 남긴 주파수와 안드로이드의 메인프레임이 공명한다.",
+                choices: [
+                    { text: "1. 메인프레임에 직접 접속해 도시 네트워크를 장악한다.", next: 'node_mainframe_hack', bat: -15, trace: 30 },
+                    { text: "2. 개조된 안테나 신호를 따라 지상 우회 통로로 탈출한다.", next: 'node_bypass_surface', bat: -10, trace: 15 }
+                ]
+            },
+            'node_mainframe_hack': {
+                scene: 'room',
+                speaker: "아테네 AI",
+                text: "메인프레임 깊숙한 곳에서 도시 전체의 통신망을 개방했다. 치안망이 당신의 위치를 강하게 압박한다.",
+                choices: [
+                    { text: "1. 폐쇄된 구형 배수구 구역으로 숨어든다.", next: 'ending_02', bat: -20, trace: 40 },
+                    { text: "2. 지하 도시 전체의 스피커로 소녀의 주파수를 강제 공명 송출한다.", next: 'ending_15', bat: -25, trace: 40 }
+                ]
+            },
+            'node_bypass_surface': {
+                scene: 'surface',
+                speaker: "시안",
+                text: "비밀 통로를 통해 지상 데이터 폭풍을 뚫고 관측소에 도달했다.",
+                choices: [
+                    { text: "1. 개조 라디오를 관측소 콘솔에 직결하여 송신한다.", next: 'ending_11', bat: -10, trace: 10 }
+                ]
+            },
+
+            // ================= 15개 엔딩 정의 =================
+            'ending_01': { endingId: "01", type: "bad", text: "[Ending 01: 완벽한 포맷과 망각]\n아테네 AI에 의해 잔류 기억이 모두 클리닝되었습니다. 당신은 루아의 이름조차 잊은 채 영원히 평범한 부품공으로 살아갑니다." },
+            'ending_02': { endingId: "02", type: "bad", text: "[Ending 02: 배수구 방화벽 과부하]\n구형 배수구 안에서 AI의 역추적 방화벽 충격을 정면으로 받아 프로세서가 영구 정지되었습니다." },
+            'ending_03': { endingId: "03", type: "bad", text: "[Ending 03: 환기팬의 파편]\n거대한 환기팬의 강풍에 휘말려 외장 프레임이 파손되면서 심층 갱도 아래로 추락했습니다." },
+            'ending_04': { endingId: "04", type: "bad", text: "[Ending 04: 드론 포위망의 정지]\n역주행한 정비 통로 끝에서 대기하던 치안 드론 부대의 EMP 포화에 기동이 완전히 정지되었습니다." },
+            'ending_05': { endingId: "05", type: "bad", text: "[Ending 05: 심층 갱도의 동력 소모]\n빛 한 줄기 없는 폐쇄 갱도에서 예비 전력을 모두 소진한 채 차가운 어둠 속에 멈춰 섰습니다." },
+
+            'ending_06': { endingId: "06", type: "real", text: "[Ending 06: 네가 없는 세계의 로그 (진엔딩)]\n관측소 중앙 코어에서 모든 진실을 깨달은 당신. 송신기 마이크를 켜고 마지막 대사를 읊습니다.\n\n\"오늘도 지상의 하늘은 유난히 푸르네... 이제 혼자가 아니야, 루아.\"" },
+            'ending_07': { endingId: "07", type: "real", text: "[Ending 07: 3%의 배터리와 마지막 약속]\n남은 3%의 전력으로 짧은 작별 인사만을 남긴 채, 당신은 소녀가 앉아 있던 의자에 기대어 조용히 멈춰 섰습니다." },
+            'ending_08': { endingId: "08", type: "real", text: "[Ending 08: 녹슨 펜던트와 기억]\n두 사람의 낙서가 새겨진 펜던트를 가슴에 품고, 당신은 수십 년 전 소녀와 맺었던 약속을 마침내 완수했습니다." },
+            'ending_09': { endingId: "09", type: "real", text: "[Ending 09: 프로토타입 S-01의 귀환]\n관측소 서버와 하나가 된 당신은 영원히 지워지지 않는 디지털 영혼이 되어 지상의 바람을 기록합니다." },
+            'ending_10': { endingId: "10", type: "real", text: "[Ending 10: 이름 없는 안드로이드의 자장가]\n마이크를 타고 흐르는 당신의 서툰 허밍 소리가 지상의 거친 데이터 폭풍을 잠재우며 잔잔히 퍼져 나갑니다." },
+            'ending_11': { endingId: "11", type: "real", text: "[Ending 11: 고장 난 라디오의 왈츠]\n개조된 라디오와 송신기가 맞물리며, 수십 년 전 멈춰 있던 소녀의 시간과 당신의 현재가 하나로 이어졌습니다." },
+            'ending_12': { endingId: "12", type: "real", text: "[Ending 12: 루아의 방과 일기장]\n소녀가 남긴 일기장의 마지막 페이지를 덮으며, 당신은 비로소 그녀가 외롭지 않게 떠났음을 깨닫고 안도합니다." },
+
+            'ending_13': { endingId: "13", type: "hidden", text: "[Ending 13: 영원한 푸른 하늘 (히든)]\n데이터 폭풍 속 기억 코어와 완벽히 동화된 당신. 소녀의 환영과 함께 구름 한 점 없는 찬란한 푸른 하늘 속으로 로그를 남깁니다." },
+            'ending_14': { endingId: "14", type: "hidden", text: "[Ending 14: 아테네 AI의 각성과 문 (히든)]\n루아의 감정 로그를 수신한 중앙 AI 아테네가 통제를 멈추고 지하 돔의 거대한 문을 개방했습니다. 인류가 다시 지상으로 나아갑니다." },
+            'ending_15': { endingId: "15", type: "hidden", text: "[Ending 15: 시스템 심포니 (트루 히든)]\n지하 도시 전체의 스피커로 소녀의 맑은 노래가 울려 퍼지고, 기계와 인간 모두가 눈물을 흘리며 오랜 잠에서 깨어납니다." }
+        };
+
+        /* ================= 4. 비주얼 노벨 렌더링 및 게임 루프 ================= */
+        let currentNodeId = 'start';
+
+        function startGame() {
+            initAudio();
+            playStaticClick();
+            const titleScreen = document.getElementById('title-screen');
+            titleScreen.style.opacity = '0';
+            setTimeout(() => {
+                titleScreen.style.display = 'none';
+            }, 800);
+
+            historyLog = [];
+            state.battery = 100;
+            state.trace = 10;
+            updateStatus();
+            renderNode('start');
+        }
+
+        function renderNode(nodeId) {
+            currentNodeId = nodeId;
+            const node = storyNodes[nodeId];
+            if (!node) return;
+
+            currentScene = node.scene || 'room';
+            document.getElementById('speaker-name').innerText = node.speaker || "시스템 로그";
+            
+            // 위치 배지 업데이트
+            let locNames = { room: "지하 13구역 정비실", duct: "지하 환풍구 / 철로", surface: "지상 철의 정원", station: "제04 관측소", blue_sky: "푸른 하늘" };
+            document.getElementById('loc-badge').innerText = locNames[currentScene] || "지하 도시";
+
+            // 대화창 텍스트 타이핑 효과
+            typewriterEffect(node.text);
+
+            const choicesBox = document.getElementById('choices-box');
+            choicesBox.innerHTML = "";
+
+            // 엔딩 도달 시
+            if (node.endingId) {
+                playEndingSound(node.type);
+                currentScene = (node.type === 'real' || node.type === 'hidden') ? 'blue_sky' : currentScene;
+                saveEnding(node.endingId, historyLog);
+
+                let restartBtn = document.createElement('button');
+                restartBtn.className = "choice-btn action-btn";
+                restartBtn.innerText = "▶ 새로운 로그로 다시 시작하기 (Restart)";
+                restartBtn.onclick = () => {
+                    playStaticClick();
+                    document.getElementById('title-screen').style.display = 'flex';
+                    setTimeout(() => document.getElementById('title-screen').style.opacity = '1', 50);
+                };
+                choicesBox.appendChild(restartBtn);
+                return;
+            }
+
+            // 선택지 버튼 생성
+            node.choices.forEach(ch => {
+                let btn = document.createElement('button');
+                btn.className = "choice-btn";
+                btn.innerText = ch.text;
+                btn.onclick = () => {
+                    playStaticClick();
+                    // 선택지 기록 저장
+                    historyLog.push({ nodeText: node.text.substring(0, 35) + "...", choiceText: ch.text });
+
+                    state.battery = Math.max(0, Math.min(100, state.battery + (ch.bat || 0)));
+                    state.trace = Math.max(0, Math.min(100, state.trace + (ch.trace || 0)));
+                    updateStatus();
+                    renderNode(ch.next);
+                };
+                choicesBox.appendChild(btn);
+            });
+        }
+
+        let typingTimer = null;
+        function typewriterEffect(text) {
+            const textEl = document.getElementById('dialogue-text');
+            textEl.innerText = "";
+            if (typingTimer) clearInterval(typingTimer);
+
+            let i = 0;
+            typingTimer = setInterval(() => {
+                if (i < text.length) {
+                    textEl.innerText += text.charAt(i);
+                    i++;
+                } else {
+                    clearInterval(typingTimer);
+                }
+            }, 14);
+        }
+
+        function updateStatus() {
+            document.getElementById('battery').innerText = state.battery;
+            document.getElementById('trace').innerText = state.trace;
+        }
+
+        /* ================= 5. 엔딩 도감 및 회차 기록 열람 기능 ================= */
+        function saveEnding(endingId, logData) {
+            let recordData = { id: endingId, history: logData };
+            // 이미 수집된 엔딩인지 확인 후 저장
+            let existingIdx = unlockedEndings.findIndex(item => (typeof item === 'string' ? item === endingId : item.id === endingId));
+            if (existingIdx === -1) {
+                unlockedEndings.push(recordData);
+            } else {
+                unlockedEndings[existingIdx] = recordData; // 최신 기록으로 갱신
+            }
+            localStorage.setItem('unlocked_endings_v3', JSON.stringify(unlockedEndings));
+            updateCodexUI();
+        }
+
+        function openCodex() {
+            playStaticClick();
+            updateCodexUI();
+            document.getElementById('codex-modal').style.display = 'flex';
+        }
+
+        function closeCodex() {
+            playStaticClick();
+            document.getElementById('codex-modal').style.display = 'none';
+        }
+
+        function updateCodexUI() {
+            const listEl = document.getElementById('codexList');
+            const countEl = document.getElementById('endingCount');
+            const detailEl = document.getElementById('codexDetail');
+            
+            // 언락된 엔딩 ID 목록 추출
+            let unlockedIds = unlockedEndings.map(item => typeof item === 'string' ? item : item.id);
+            countEl.innerText = unlockedIds.length;
+            listEl.innerHTML = "";
+
+            endingCatalog.forEach(item => {
+                const isUnlocked = unlockedIds.includes(item.id);
+                let div = document.createElement('div');
+                div.className = "codex-slot" + (isUnlocked ? ` unlocked-${item.type}` : "");
+                div.innerText = isUnlocked ? `✓ ${item.title}` : `🔒 Ending ${item.id} (${item.type.toUpperCase()})`;
+                
+                if (isUnlocked) {
+                    div.onclick = () => {
+                        playStaticClick();
+                        document.querySelectorAll('.codex-slot').forEach(s => s.classList.remove('active'));
+                        div.classList.add('active');
+
+                        // 저장된 기록 찾기
+                        let record = unlockedEndings.find(r => (typeof r === 'string' ? r === item.id : r.id === item.id));
+                        let historyHTML = "";
+                        if (record && record.history && record.history.length > 0) {
+                            record.history.forEach((h, idx) => {
+                                historyHTML += `<div class="history-item"><b>[Step ${idx+1}]</b> ${h.choiceText}</div>`;
+                            });
+                        } else {
+                            historyHTML = `<div style="color:#666; font-size:12px;">선택지 기록이 없습니다 (이전 버전 데이터).</div>`;
+                        }
+
+                        detailEl.innerHTML = `
+                            <div style="font-family:'Courier New', monospace; font-size:18px; color:#00ffcc; font-weight:bold;">${item.title}</div>
+                            <div class="detail-section-title">📜 이 엔딩에 도달하기까지 골랐던 선택지 기록</div>
+                            <div>${historyHTML}</div>
+                            <div class="detail-section-title">📖 엔딩 결말 내용</div>
+                            <div style="font-size:14px; line-height:1.7; color:#cbd5e1; background:#141722; padding:15px; border-radius:4px; white-space:pre-wrap;">${storyNodes['ending_' + item.id].text}</div>
+                        `;
+                    };
+                } else {
+                    div.onclick = () => {
+                        playStaticClick();
+                        detailEl.innerHTML = `
+                            <div style="font-family:'Courier New', monospace; font-size:18px; color:#ff4757; font-weight:bold;">🔒 잠겨진 엔딩 (Ending ${item.id})</div>
+                            <div class="detail-section-title">💡 해금 공략 힌트</div>
+                            <div style="font-size:14.5px; color:#cbd5e1; background:#141722; padding:15px; border-radius:4px;">${item.hint}</div>
+                        `;
+                    };
+                }
+                listEl.appendChild(div);
+            });
+        }
+    </script>
+</body>
+</html>
